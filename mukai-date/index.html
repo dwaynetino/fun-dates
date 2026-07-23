@@ -410,27 +410,31 @@
   window.addEventListener('load', placeInitial);
   window.addEventListener('resize', ()=>{ if(attempts === 0) placeInitial(); });
 
-  // dodge to a random spot across the WHOLE visible screen, biased to be
-  // far from the given threat coordinate (falls back to pure random if none given)
+  // dodge to a random spot WITHIN THE WHITE CARD, biased to be far from
+  // the given threat coordinate (falls back to pure random if none given)
+  const questionCard = dodgeZone.closest('.card');
   function dodge(px, py){
     const margin = 12;
     const bw = noBtn.offsetWidth;
     const bh = noBtn.offsetHeight;
-    const maxX = Math.max(margin, window.innerWidth - bw - margin);
-    const maxY = Math.max(margin, window.innerHeight - bh - margin);
+    const cardRect = questionCard.getBoundingClientRect();
+    const minX = cardRect.left + margin;
+    const minY = cardRect.top + margin;
+    const maxX = Math.max(minX, cardRect.right - bw - margin);
+    const maxY = Math.max(minY, cardRect.bottom - bh - margin);
     let newX, newY;
     if(typeof px === 'number'){
-      let bestX = margin, bestY = margin, bestDist = -1;
+      let bestX = minX, bestY = minY, bestDist = -1;
       for(let i=0;i<14;i++){
-        const cx = margin + Math.random()*(maxX-margin);
-        const cy = margin + Math.random()*(maxY-margin);
+        const cx = minX + Math.random()*(maxX-minX);
+        const cy = minY + Math.random()*(maxY-minY);
         const d = Math.hypot(cx-px, cy-py);
         if(d > bestDist){ bestDist = d; bestX = cx; bestY = cy; }
       }
       newX = bestX; newY = bestY;
     } else {
-      newX = margin + Math.random()*(maxX-margin);
-      newY = margin + Math.random()*(maxY-margin);
+      newX = minX + Math.random()*(maxX-minX);
+      newY = minY + Math.random()*(maxY-minY);
     }
     noBtn.style.left = newX + 'px';
     noBtn.style.top = newY + 'px';
