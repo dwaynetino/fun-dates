@@ -167,11 +167,12 @@
   .btn-yes:active{ transform:scale(.97); }
 
   .btn-no{
-    position:absolute;
+    position:fixed;
     background:#fff;
     color:var(--pink-deep);
     border:2px solid var(--pink-3);
-    z-index:2;
+    z-index:60;
+    transition:transform .18s ease, box-shadow .18s ease, left .15s ease-out, top .15s ease-out;
   }
 
   .hint{
@@ -400,37 +401,36 @@
     const h = dodgeZone.clientHeight;
     yesBtn.style.left = (w*0.5 - yesBtn.offsetWidth - 10) + 'px';
     yesBtn.style.top = (h/2 - yesBtn.offsetHeight/2) + 'px';
-    noBtn.style.left = (w*0.5 + 10) + 'px';
-    noBtn.style.top = (h/2 - noBtn.offsetHeight/2) + 'px';
+    // noBtn is position:fixed (roams the whole viewport once threatened),
+    // so its initial resting spot is expressed in viewport coordinates
+    const zoneRect = dodgeZone.getBoundingClientRect();
+    noBtn.style.left = (zoneRect.left + w*0.5 + 10) + 'px';
+    noBtn.style.top = (zoneRect.top + h/2 - noBtn.offsetHeight/2) + 'px';
   }
   window.addEventListener('load', placeInitial);
-  window.addEventListener('resize', placeInitial);
+  window.addEventListener('resize', ()=>{ if(attempts === 0) placeInitial(); });
 
-  // dodge to the point in the zone farthest from the given threat coordinate
-  // (falls back to pure random if no coordinate is given)
+  // dodge to a random spot across the WHOLE visible screen, biased to be
+  // far from the given threat coordinate (falls back to pure random if none given)
   function dodge(px, py){
-    const w = dodgeZone.clientWidth;
-    const h = dodgeZone.clientHeight;
+    const margin = 12;
     const bw = noBtn.offsetWidth;
     const bh = noBtn.offsetHeight;
-    const maxX = Math.max(10, w - bw - 10);
-    const maxY = Math.max(10, h - bh - 10);
+    const maxX = Math.max(margin, window.innerWidth - bw - margin);
+    const maxY = Math.max(margin, window.innerHeight - bh - margin);
     let newX, newY;
     if(typeof px === 'number'){
-      const candidates = [
-        [10,10],[maxX,10],[10,maxY],[maxX,maxY],
-        [maxX/2,10],[maxX/2,maxY],[10,maxY/2],[maxX,maxY/2]
-      ];
-      let best = candidates[0], bestDist = -1;
-      candidates.forEach(([cx,cy])=>{
+      let bestX = margin, bestY = margin, bestDist = -1;
+      for(let i=0;i<14;i++){
+        const cx = margin + Math.random()*(maxX-margin);
+        const cy = margin + Math.random()*(maxY-margin);
         const d = Math.hypot(cx-px, cy-py);
-        if(d > bestDist){ bestDist = d; best = [cx,cy]; }
-      });
-      newX = Math.min(maxX, Math.max(10, best[0] + (Math.random()*30-15)));
-      newY = Math.min(maxY, Math.max(10, best[1] + (Math.random()*30-15)));
+        if(d > bestDist){ bestDist = d; bestX = cx; bestY = cy; }
+      }
+      newX = bestX; newY = bestY;
     } else {
-      newX = Math.max(10, Math.random()*maxX);
-      newY = Math.max(10, Math.random()*maxY);
+      newX = margin + Math.random()*(maxX-margin);
+      newY = margin + Math.random()*(maxY-margin);
     }
     noBtn.style.left = newX + 'px';
     noBtn.style.top = newY + 'px';
@@ -444,23 +444,23 @@
   const DODGE_RADIUS = 130;
   let lastDodgeAt = 0;
   function threatCheck(clientX, clientY){
+    if(!document.getElementById('screen-question').classList.contains('active')) return;
     const rect = noBtn.getBoundingClientRect();
-    const zoneRect = dodgeZone.getBoundingClientRect();
     const cx = rect.left + rect.width/2;
     const cy = rect.top + rect.height/2;
     const dist = Math.hypot(clientX-cx, clientY-cy);
     const now = Date.now();
     if(dist < DODGE_RADIUS && now - lastDodgeAt > 100){
       lastDodgeAt = now;
-      dodge(clientX - zoneRect.left, clientY - zoneRect.top);
+      dodge(clientX, clientY);
     }
   }
-  dodgeZone.addEventListener('mousemove', (e)=> threatCheck(e.clientX, e.clientY));
-  dodgeZone.addEventListener('touchstart', (e)=>{
+  document.addEventListener('mousemove', (e)=> threatCheck(e.clientX, e.clientY));
+  document.addEventListener('touchstart', (e)=>{
     const t = e.touches[0];
     if(t) threatCheck(t.clientX, t.clientY);
   }, {passive:true});
-  dodgeZone.addEventListener('touchmove', (e)=>{
+  document.addEventListener('touchmove', (e)=>{
     const t = e.touches[0];
     if(t) threatCheck(t.clientX, t.clientY);
   }, {passive:true});
